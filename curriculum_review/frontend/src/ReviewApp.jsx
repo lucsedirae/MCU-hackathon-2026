@@ -76,6 +76,7 @@ function AccountGate({ onUser }) {
   }, []);
   async function submit(e) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError("");
     const f = new FormData(e.currentTarget);
@@ -254,7 +255,7 @@ function Team({ run, users, reload }) {
     </section>
   );
 }
-function ThreadCard({ thread: t, canResolve, run, reload, openOriginal }) {
+function ThreadCard({ thread: t, canResolve, run, reload, openOriginal, jumpToPassage }) {
   return (
     <article className={`thread ${t.resolved ? "resolved" : ""}`}>
       <div className="toolbar">
@@ -284,7 +285,7 @@ function ThreadCard({ thread: t, canResolve, run, reload, openOriginal }) {
           </button>
         )}
       </div>
-      {t.quote && <blockquote>{t.quote}</blockquote>}
+      {t.quote && <blockquote>{t.quote}{t.anchor.status !== "unplaced" && <button className="text-button" onClick={jumpToPassage}>Show passage</button>}</blockquote>}
       <button className="text-button" onClick={openOriginal}>
         View original revision context
       </button>
@@ -295,7 +296,7 @@ function ThreadCard({ thread: t, canResolve, run, reload, openOriginal }) {
           <p>{m.text}</p>
         </div>
       ))}
-      <form
+      <details><summary>Reply to this comment</summary><form
         onSubmit={(e) => {
           e.preventDefault();
           const form = e.currentTarget;
@@ -314,7 +315,7 @@ function ThreadCard({ thread: t, canResolve, run, reload, openOriginal }) {
           <textarea name="text" required maxLength={10000} />
         </label>
         <button className="secondary-button">Reply</button>
-      </form>
+      </form></details>
     </article>
   );
 }
@@ -334,6 +335,11 @@ export default function ReviewApp() {
     [selectedThreads, setSelectedThreads] = useState([]),
     [resolveThreads, setResolveThreads] = useState([]),
     [includeComments, setIncludeComments] = useState(false);
+  const [workspaceTab, setWorkspaceTab] = useState("curriculum");
+  const [tool, setTool] = useState("");
+  const [proposalView, setProposalView] = useState("document");
+  const [commentsOpen, setCommentsOpen] = useState(() => !window.matchMedia("(max-width: 700px)").matches);
+  const [commentFilter, setCommentFilter] = useState("open");
   const contentRef = useRef(null);
   const owner = workspace?.owner_id === user?.id;
   useEffect(() => {
@@ -342,8 +348,9 @@ export default function ReviewApp() {
       .catch(() => setUser(null));
   }, []);
   async function run(fn) {
+    if (busy) return;
     setError("");
-    setBusy(true);
+    setBusy(window.document.activeElement?.textContent?.trim().slice(0, 60) || "Updating");
     try {
       await fn();
     } catch (e) {
@@ -363,13 +370,18 @@ export default function ReviewApp() {
   async function loadDocument(id, revisionId) {
     const d = await api(`/documents/${id}`);
     setDocument(d);
+    setTool("");
+    setProposalView("document");
+    setWorkspaceTab(d.kind === "report" ? "reports" : d.kind === "transcript" ? "activity" : "curriculum");
     setComparison(null);
     setSelection(null);
     setSelectedThreads([]);
     setResolveThreads([]);
     setCompareTo("");
     const rid = revisionId || d.current_id || d.revisions[0]?.id;
-    setRevision(rid ? await api(`/documents/${id}/revisions/${rid}`) : null);
+    const next = rid ? await api(`/documents/${id}/revisions/${rid}`) : null;
+    setRevision(next);
+    if (d.kind === "curriculum" && next?.status !== "accepted" && next) setWorkspaceTab("proposals");
   }
   async function refresh() {
     if (workspace) await loadWorkspace(workspace.id);
@@ -382,10 +394,14 @@ export default function ReviewApp() {
       );
   }
   async function openWorkspace(id) {
-    await loadWorkspace(id);
+    const w = await loadWorkspace(id);
     setDocument(null);
     setRevision(null);
     setComparison(null);
+    setWorkspaceTab("curriculum");
+    const curriculum = w.documents.find(d => d.kind === "curriculum");
+    if (curriculum) await loadDocument(curriculum.id);
+
   }
   useEffect(() => {
     if (user && !user.must_change)
@@ -415,6 +431,7 @@ export default function ReviewApp() {
     const before = range.cloneRange();
     before.selectNodeContents(el);
     before.setEnd(range.startContainer, range.startOffset);
+    setCommentsOpen(true);
     setSelection({
       block_id: el.dataset.blockText,
       start: [...before.toString()].length,
@@ -433,6 +450,8 @@ export default function ReviewApp() {
       },
     });
     await loadWorkspace(workspace.id);
+    setTool("");
+    setWorkspaceTab("activity");
   }
   async function download(format) {
     const response = await fetch(
@@ -473,7 +492,8 @@ export default function ReviewApp() {
       <header>
         <span className="mark">CR</span>
         <strong>Curriculum Review</strong>
-        <span className="tag">{user.name}</span>
+        <details className="user-menu"><summary>{user.name}</summary>
+          <button className="secondary-button" onClick={() => setPage("account")}>My account</button>
         <button
           className="secondary-button"
           onClick={() =>
@@ -488,21 +508,14 @@ export default function ReviewApp() {
         >
           Sign out
         </button>
+        </details>
       </header>
       <nav className="page-nav" aria-label="Main navigation">
-        {[
-          "workspaces",
-          ...(user.admin ? ["team", "settings"] : []),
-          "account",
-        ].map((p) => (
-          <button
-            key={p}
-            className={page === p ? "active-tab" : "secondary-button"}
-            onClick={() => setPage(p)}
-          >
-            {p[0].toUpperCase() + p.slice(1)}
-          </button>
-        ))}
+        <button className={page === "workspaces" ? "active-tab" : "secondary-button"} onClick={() => setPage("workspaces")}>Workspaces</button>
+        {user.admin && <details><summary>Administration</summary><div className="toolbar">
+          <button onClick={() => setPage("team")}>Team accounts</button>
+          <button onClick={() => setPage("settings")}>OpenAI settings</button>
+        </div></details>}
       </nav>
       {error && (
         <div className="error-banner" role="alert">
@@ -512,7 +525,7 @@ export default function ReviewApp() {
           </button>
         </div>
       )}
-      {busy && <p role="status">Saving or loading…</p>}
+      {busy && <p className="operation-status" role="status">{busy}… You can continue reading.</p>}
       <fieldset className="app-fieldset" disabled={busy}>
         {page === "account" && <PasswordForm onDone={() => setUser(null)} />}
         {page === "settings" && user.admin && <Settings />}
@@ -520,12 +533,12 @@ export default function ReviewApp() {
           <Team run={run} users={users} reload={reloadUsers} />
         )}
         {page === "workspaces" && (
-          <>
-            <section className="panel">
+          <div className="workspace-shell">
+            <section className="panel workspace-sidebar">
               <div className="panel-heading">
                 <div>
                   <p className="eyebrow">Team library</p>
-                  <h1>Review workspaces</h1>
+                  <h1>Workspaces</h1>
                 </div>
                 <button
                   className="secondary-button"
@@ -591,8 +604,10 @@ export default function ReviewApp() {
                 </details>
               )}
             </section>
+            <div className="workspace-main">
+            {!workspace && <section className="panel"><h1>Your team library</h1><p>Choose a workspace to read, review, or revise its curriculum.</p></section>}
             {workspace && (
-              <section className="panel">
+              <section className="panel workspace-heading">
                 <div className="panel-heading">
                   <div>
                     <h2>{workspace.title}</h2>
@@ -641,8 +656,23 @@ export default function ReviewApp() {
                     </form>
                   </details>
                 )}
+                <nav className="workspace-tabs" aria-label="Workspace sections">
+                  {["curriculum", "proposals", "reports", "activity"].map(tab => <button key={tab} aria-current={workspaceTab === tab ? "page" : undefined} className={workspaceTab === tab ? "active-tab" : "secondary-button"} onClick={() => run(async () => {
+                    if (tab === "curriculum" || tab === "proposals") {
+                      const d = workspace.documents.find(d => d.kind === "curriculum");
+                      if (d) await loadDocument(d.id);
+                    }
+                    setWorkspaceTab(tab); setTool("");
+                  })}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
+                </nav>
+                {running && <div className="notice" role="status">Work is in progress. <button className="text-button" onClick={() => setWorkspaceTab("activity")}>View activity and stop controls</button></div>}
+                {workspaceTab === "proposals" && document?.kind === "curriculum" && <div className="proposal-list">
+                  <h3>Curriculum proposals</h3>
+                  {document.revisions.filter(r => r.status !== "accepted").map(r => <button className="secondary-button" key={r.id} onClick={() => run(() => loadDocument(document.id, r.id))}>Revision {r.number} · {r.status}{r.outdated ? " · outdated base" : ""} · {r.author_name}</button>)}
+                  {!document.revisions.some(r => r.status !== "accepted") && <p>No proposals yet. Use Revise to upload or generate one.</p>}
+                </div>}
                 <div className="document-list">
-                  {workspace.documents.map((d) => (
+                  {workspace.documents.filter(d => workspaceTab === "reports" ? d.kind === "report" : false).map((d) => (
                     <button
                       className={
                         document?.id === d.id ? "" : "secondary-button"
@@ -655,8 +685,10 @@ export default function ReviewApp() {
                     </button>
                   ))}
                 </div>
-                {workspace.runs.length > 0 && (
-                  <details open={running}>
+                {workspaceTab === "reports" && !workspace.documents.some(d => d.kind === "report") && <p>No reports yet. Start a review from the curriculum.</p>}
+                {workspaceTab === "activity" && !workspace.runs.length && <p>No activity yet.</p>}
+                {workspaceTab === "activity" && workspace.runs.length > 0 && (
+                  <details open>
                     <summary>
                       Review and generation runs ({workspace.runs.length})
                     </summary>
@@ -761,7 +793,7 @@ export default function ReviewApp() {
                 )}
               </section>
             )}
-            {document && workspace && (
+            {document && workspace && ((["curriculum", "proposals"].includes(workspaceTab) && document.kind === "curriculum") || (workspaceTab === "reports" && document.kind === "report") || (workspaceTab === "activity" && document.kind === "transcript")) && (
               <section className="panel">
                 <div className="panel-heading">
                   <div>
@@ -799,9 +831,18 @@ export default function ReviewApp() {
                     </p>
                   )}
                 </>
+                <div className="document-toolbar" aria-label="Document actions">
+                  {owner && document.kind === "curriculum" && <><button disabled={!revision} onClick={() => setTool(tool === "review" ? "" : "review")}>Review</button><button onClick={() => setTool(tool === "revise" ? "" : "revise")}>Revise</button></>}
+                  {owner && document.kind === "report" && <button onClick={() => setTool(tool === "revise" ? "" : "revise")}>Upload report revision</button>}
+                  {revision && <button className="secondary-button" onClick={() => setTool(tool === "download" ? "" : "download")}>Download</button>}
+                  <button className="secondary-button" onClick={() => setTool(tool === "history" ? "" : "history")}>History</button>
+                  {document.kind !== "transcript" && revision && <button className="secondary-button" aria-expanded={commentsOpen} onClick={() => setCommentsOpen(!commentsOpen)}>Comments ({revision.threads.filter(t => !t.resolved).length})</button>}
+                </div>
+                {tool === "history" && <section className="tool-panel"><h3>Version history</h3>
                 <label className="field">
                   Version history
                   <select
+                    aria-label="Version history"
                     value={revision?.id || ""}
                     onChange={(e) =>
                       run(() => loadDocument(document.id, e.target.value))
@@ -820,8 +861,9 @@ export default function ReviewApp() {
                     ))}
                   </select>
                 </label>
-                {owner && document.kind !== "transcript" && (
-                  <details open={!revision}>
+                </section>}
+                {owner && document.kind !== "transcript" && (tool === "revise" || !revision) && (
+                  <details open>
                     <summary>
                       Upload{" "}
                       {document.kind === "curriculum"
@@ -873,12 +915,50 @@ export default function ReviewApp() {
                     </form>
                   </details>
                 )}
+                {owner && document.kind === "curriculum" && ["review", "revise"].includes(tool) && (
+                  <section className="generation">
+                    <h3>{tool === "review" ? "Review curriculum" : "Generate a curriculum proposal"}</h3>
+                    <p>
+                      {revision
+                        ? `Uses revision ${revision.number}, including pending proposals.`
+                        : "Generate an initial curriculum from your instructions."}{" "}
+                      The selected content and feedback will be sent to OpenAI
+                      using the model configured by your administrator.
+                    </p>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const form = e.currentTarget;
+                        const kind =
+                          e.nativeEvent.submitter?.value || "generate";
+                        run(() => startRun(kind, form));
+                      }}
+                    >
+                      <label className="field">
+                        Instructions
+                        <textarea
+                          name="instructions"
+                          maxLength={16000}
+                          required={!revision}
+                        />
+                      </label>
+                      <div className="toolbar">
+                        {tool === "review" && <button name="kind" value="review" disabled={!revision}>
+                          Start review
+                        </button>}
+                        {tool === "revise" && <button name="kind" value="generate">
+                          Generate curriculum proposal
+                        </button>}
+                      </div>
+                    </form>
+                  </section>
+                )}
                 {revision && (
                   <>
+                    <p className="revision-status"><span className="badge">Revision {revision.number} · {revision.status}{revision.id === document.current_id ? " · current" : ""}</span></p>
+                    {tool === "download" && <section className="tool-panel"><h3>Download this version</h3>
                     <div className="toolbar">
-                      <span className="badge">
-                        Revision {revision.number} · {revision.status}
-                      </span>
+
                       <label>
                         <input
                           type="checkbox"
@@ -905,8 +985,10 @@ export default function ReviewApp() {
                         </a>
                       ))}
                     </div>
+                    </section>}
                     <p>{revision.description}</p>
-                    {revision.exports?.length > 0 && (
+                    {document.revisions.find(r => r.id === revision.id)?.outdated && <p className="notice">This proposal is based on an older curriculum. Review changes against the current accepted version before deciding.</p>}
+                    {tool === "history" && revision.exports?.length > 0 && (
                       <details>
                         <summary>
                           Previously generated exports (
@@ -924,12 +1006,13 @@ export default function ReviewApp() {
                         </ul>
                       </details>
                     )}
-                    {revision.content.warnings?.map((w, i) => (
+                    {!!revision.content.warnings?.length && <details className="notice"><summary>Import limitations ({revision.content.warnings.length}) — review before accepting</summary>{revision.content.warnings.map((w, i) => (
                       <p className="notice" key={i}>
                         {w}
                       </p>
-                    ))}
-                    {document.kind !== "transcript" && (
+                    ))}</details>}
+                    {document.kind === "curriculum" && revision.status === "pending" && <nav className="proposal-steps" aria-label="Proposal preview"><button className={proposalView === "document" ? "active-tab" : "secondary-button"} onClick={() => setProposalView("document")}>1. Preview document</button><button className={proposalView === "changes" ? "active-tab" : "secondary-button"} onClick={() => run(async () => { setProposalView("changes"); setCompareTo(""); setComparison(await api(`/documents/${document.id}/revisions/${revision.id}/compare`, {method:"POST", body:{against_id:null}})); })}>2. Review changes</button><span>3. Accept or reject</span></nav>}
+                    {document.kind !== "transcript" && (tool === "history" || proposalView === "changes") && (
                       <div className="toolbar">
                         <label className="field">
                           Compare against
@@ -989,7 +1072,7 @@ export default function ReviewApp() {
                         )}
                       </div>
                     )}
-                    {comparison && (
+                    {comparison && (proposalView === "changes" || tool === "history") && (
                       <section className="comparison">
                         <h3>
                           Changes against{" "}
@@ -1013,7 +1096,7 @@ export default function ReviewApp() {
                     )}
                     {owner &&
                       document.kind === "curriculum" &&
-                      revision.status === "pending" && (
+                      revision.status === "pending" && proposalView === "changes" && (
                         <section className="approval">
                           <h3>Proposal decision</h3>
                           <p>
@@ -1044,6 +1127,7 @@ export default function ReviewApp() {
                               </label>
                             ) : null;
                           })}
+                          {!comparison && <p>Load the changes against the current curriculum to enable acceptance.</p>}
                           <div className="toolbar">
                             <button
                               disabled={
@@ -1104,7 +1188,7 @@ export default function ReviewApp() {
                         Reopen proposal
                       </button>
                     )}
-                    <div className="reading-layout">
+                    <div className={`reading-layout ${!commentsOpen || document.kind === "transcript" ? "reading-only" : ""}`} hidden={proposalView === "changes"}>
                       <div
                         className="document-content"
                         ref={contentRef}
@@ -1119,9 +1203,11 @@ export default function ReviewApp() {
                           />
                         ))}
                       </div>
-                      {document.kind !== "transcript" && (
+                      {document.kind !== "transcript" && commentsOpen && (
                         <aside className="comments">
-                          <h3>Discussion</h3>
+                          <div className="panel-heading"><h3>Comments</h3><button className="secondary-button" onClick={() => setCommentsOpen(false)}>Back to document</button></div>
+                          <label className="field">Show comments<select value={commentFilter} onChange={e => setCommentFilter(e.target.value)}><option value="open">Open</option><option value="resolved">Resolved</option><option value="unplaced">Needs placement</option><option value="all">All</option></select></label>
+                          {owner && document.kind === "curriculum" && selectedThreads.length > 0 && <button onClick={() => {setTool("revise"); setTimeout(() => window.document.querySelector(".generation")?.scrollIntoView({behavior:"smooth"}), 0);}}>Revise using {selectedThreads.length} selected comments</button>}
                           <p>
                             Select text in the document to attach a comment, or
                             leave general feedback.
@@ -1178,7 +1264,7 @@ export default function ReviewApp() {
                             <button>Add comment</button>
                           </form>
                           <div className="stack">
-                            {revision.threads.map((t) => (
+                            {revision.threads.filter(t => commentFilter === "all" || (commentFilter === "open" && !t.resolved) || (commentFilter === "resolved" && t.resolved) || (commentFilter === "unplaced" && t.anchor.status === "unplaced")).map((t) => (
                               <div key={t.id}>
                                 {owner &&
                                   !t.resolved &&
@@ -1202,6 +1288,13 @@ export default function ReviewApp() {
                                   )}
                                 <ThreadCard
                                   thread={t}
+                                  jumpToPassage={() => {
+                                    const el = [...(contentRef.current?.querySelectorAll("[data-block-text]") || [])].find(el => el.dataset.blockText === (t.anchor.block_id || t.block_id));
+                                    if (el) {
+                                      if (window.matchMedia("(max-width: 700px)").matches) setCommentsOpen(false);
+                                      setTimeout(() => { el.scrollIntoView({behavior:"smooth", block:"center"}); el.tabIndex = -1; el.focus({preventScroll:true}); }, 0);
+                                    }
+                                  }}
                                   canResolve={owner || t.author_id === user.id}
                                   run={run}
                                   reload={reloadRevision}
@@ -1219,47 +1312,11 @@ export default function ReviewApp() {
                     </div>
                   </>
                 )}
-                {owner && document.kind === "curriculum" && (
-                  <section className="generation">
-                    <h3>Review or revise with the configured model</h3>
-                    <p>
-                      {revision
-                        ? `Uses revision ${revision.number}, including pending proposals.`
-                        : "Generate an initial curriculum from your instructions."}{" "}
-                      The selected content and feedback will be sent to the
-                      provider configured by your administrator.
-                    </p>
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const form = e.currentTarget;
-                        const kind =
-                          e.nativeEvent.submitter?.value || "generate";
-                        run(() => startRun(kind, form));
-                      }}
-                    >
-                      <label className="field">
-                        Instructions
-                        <textarea
-                          name="instructions"
-                          maxLength={16000}
-                          required={!revision}
-                        />
-                      </label>
-                      <div className="toolbar">
-                        <button name="kind" value="review" disabled={!revision}>
-                          Start review run
-                        </button>
-                        <button name="kind" value="generate">
-                          Generate curriculum proposal
-                        </button>
-                      </div>
-                    </form>
-                  </section>
-                )}
+
               </section>
             )}
-          </>
+            </div>
+          </div>
         )}
       </fieldset>
       <footer>

@@ -130,3 +130,7 @@ IMPLEMENTATION_PLAN.md     Consolidated product decisions and implementation
 Upload a `.zip` containing a root `imsmanifest.xml` (SCORM 1.2/2004), `tincan.xml` (Tin Can), or `cmi5.xml` manifest. Imports course titles, descriptions, and referenced HTML/plain-text pages into the existing preview, acceptance, commenting, and export workflow. SCORM uses the default organization and item order. Limits: 20 MB upload, 100 MB expanded, 10,000 entries, 16 MB per imported file.
 
 This is static text extraction, not a course player or LRS connection. JavaScript-generated content, media, learner activity records, external pages, and proprietary authoring data are not analyzed. Review import warnings for missing or incomplete content. For packages embedded in Moodle backups, upload the original course ZIP separately.
+
+## Workspace navigation
+
+Use **Curriculum**, **Proposals**, **Reports**, and **Activity** to move between workspace tasks. Document actions are grouped under **Review**, **Revise**, **Download**, and **History**. Comments can be collapsed or filtered by status. Administration contains team accounts and OpenAI settings; the user menu contains account and sign-out controls. See [UX_PLAN.md](UX_PLAN.md) for the complete feature map.

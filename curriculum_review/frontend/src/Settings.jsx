@@ -103,7 +103,7 @@ export default function Settings() {
           <label className="chat-label" htmlFor="llm-key">API key</label>
           <input className="settings-input" id="llm-key" type="password" autoComplete="new-password" spellCheck={false} maxLength={8192} value={key} onChange={event => setKey(event.target.value)} placeholder={saved?.has_api_key ? 'Leave blank to keep your saved key' : 'Enter API key'} aria-describedby="key-help" />
           <p id="key-help" className="chat-hint">Encrypted on the server and used only with OpenAI. Enter a new key to replace it.</p>
-          <section className="prompt-settings" aria-labelledby="prompt-settings-title">
+          <details className="prompt-settings"><summary>Review instructions</summary>
             <h2 id="prompt-settings-title">System instructions</h2>
             <label className="chat-label" htmlFor="system-prompt">System prompt</label>
             <textarea id="system-prompt" className="chat-input" rows={6} maxLength={32000} value={systemPrompt} onChange={event => setSystemPrompt(event.target.value)} placeholder="Describe the agent’s role, goals, and response style…" />
@@ -121,7 +121,7 @@ export default function Settings() {
               </div>
             ))}
             <p className="chat-hint">All instruction fields are optional and included in model requests after saving.</p>
-          </section>
+          </details>
           <div className="settings-actions">
             <button type="submit">{busy === 'save' ? 'Saving…' : 'Save settings'}</button>
             <button type="button" disabled={!model || (!saved?.has_api_key && !key.trim())} onClick={() => act('test')}>{busy === 'test' ? 'Testing…' : dirty ? 'Save and test connection' : 'Test connection'}</button>
