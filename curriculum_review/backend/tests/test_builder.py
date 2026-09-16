@@ -224,7 +224,7 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(self.detail()['tasks'][0]['status'],'stopped');self.assertEqual(self.detail()['proposals'],[])
 
     def test_insufficient_evidence_returns_intake_without_report(self):
-        self.ready();out=self.outputs();draft=json.loads(out[0]['text']);draft.update(ready_for_review=False, report_markdown='',proposals=[],comments=[],assessments=[],reply='Submit learner prerequisites and performance standards.')
+        self.ready();out=self.outputs();draft=json.loads(out[0]['text']);draft.update(ready_for_review=False, report_markdown='',proposals=[],comments=[],assessments=[],reply='I need a little more context.\n\nWhat should learners be able to do?')
         with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps({'reply':draft['reply'],'ready_for_review':False}),'model':'mock'})) as call:
             self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Review','action':'review'})
             self.assertEqual(call.await_count,1)
@@ -260,7 +260,7 @@ class BuilderTests(unittest.TestCase):
     def test_chat_can_interview_before_source_upload(self):
         fid=self.ready()
         self.wid=self.client.post('/api/builder/workspaces',json={'title':'No sources yet','framework_id':fid}).json()['id']
-        reply={'reply':'Who are the learners and what must they be able to do?','ready_for_review':False}
+        reply={'reply':'Let’s start with your learners.\n\nWho is this course for?','ready_for_review':False}
         with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps(reply),'model':'mock'})) as call:
             r=self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'I need help getting started.'})
             self.assertEqual(r.status_code,200);self.assertEqual(call.await_count,1)
@@ -268,7 +268,7 @@ class BuilderTests(unittest.TestCase):
 
     def test_chat_followup_receives_report_and_pending_changes(self):
         self.ready();task=self.run_review()
-        response={'reply':'The proposed assessment change needs your verification.','ready_for_review':False}
+        response={'reply':'The quizzes may need changes.\n\nPlease review the proposed change before approving it.','ready_for_review':False}
         with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps(response),'model':'mock'})) as call:
             self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Explain the assessment gap you found.'})
             context=json.loads(call.call_args.args[0])['context']
@@ -311,7 +311,7 @@ class BuilderTests(unittest.TestCase):
         fid=self.ready()
         with Session(self.engine) as s:
             w=s.get(BuilderWorkspace,self.wid);w.framework_id=None;s.commit()
-        reply={'reply':'First I will inspect the sources, then ask about missing performance standards.','ready_for_review':False}
+        reply={'reply':'I have your files.\n\nI’ll check them for learning goals next.','ready_for_review':False}
         with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps(reply),'model':'mock'})) as call:
             r=self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Here are my materials.'})
             self.assertEqual(r.status_code,200);self.assertEqual(call.await_count,1)
@@ -322,7 +322,7 @@ class BuilderTests(unittest.TestCase):
         data=('Unique evidence line for larger collection. ' * 4000).encode()
         r=self.client.post(f'/api/builder/workspaces/{self.wid}/sources',files={'file':('large.txt',data)})
         self.assertEqual(r.status_code,200)
-        with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps({'reply':'Confirm the subject area.','ready_for_review':False}),'model':'mock'})) as call:
+        with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps({'reply':'I have your materials.\n\nWhich subject should this cover?','ready_for_review':False}),'model':'mock'})) as call:
             r=self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Inspect these materials.'})
             self.assertEqual(r.status_code,200)
             prompt=call.call_args.args[0]
@@ -356,7 +356,7 @@ class BuilderTests(unittest.TestCase):
         self.uid='owner';self.assertEqual(self.client.get('/api/references').json(),[])
         self.assertEqual(self.client.get('/api/references/'+rid).status_code,404)
         self.uid='admin';self.client.post('/api/references/'+rid+'/publish');self.uid='owner'
-        with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps({'reply':'Confirm discipline','ready_for_review':False}),'model':'mock'})):
+        with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps({'reply':'I have your materials.\n\nWhich subject should this cover?','ready_for_review':False}),'model':'mock'})):
             self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Begin'})
         with Session(self.engine) as s:
             task=s.scalar(select(BuilderTask));self.assertEqual(task.snapshot['retrieval_scope']['reference'],[rid])
@@ -572,9 +572,12 @@ class BuilderTests(unittest.TestCase):
         task=self.detail()['tasks'][0];self.assertEqual(task['status'],'completed',task['error'])
         self.assertLess(stages.index('quality'),stages.index('guidance'))
         displayed=self.detail()['entries'][-1]['text']
-        self.assertTrue(displayed.startswith('## TLDR'))
+        self.assertTrue(displayed.startswith('Planning practice'))
         self.assertIn('What must learners demonstrate to pass?',displayed)
         self.assertNotIn('Who verifies the scoring criteria?',displayed)
+        self.assertNotIn('configured guidance',displayed)
+        self.assertNotIn('Why this matters',displayed)
+        self.assertEqual(len(displayed.split('\n\n')),2)
         self.assertEqual(len(task['result']['guidance']['questions']),2)
         self.assertIn('Review prepared.',task['result']['raw_reply'])
         self.assertIn('# Review',task['result']['coordinator']['report_markdown'])
@@ -582,7 +585,7 @@ class BuilderTests(unittest.TestCase):
 
     def test_followup_answer_receives_question_queue_without_automatic_review(self):
         self.ready();self.run_review()
-        answer={'reply':'That clarifies the performance standard. Who verifies the scoring criteria?','ready_for_review':False}
+        answer={'reply':'That clarifies what learners need to do.\n\nWho checks how their work is graded?','ready_for_review':False}
         with patch.object(builder,'request_completion',AsyncMock(return_value={'text':json.dumps(answer),'model':'mock'})) as call:
             self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Learners must produce an accurate operational plan.'})
             self.assertEqual(call.await_count,1)
@@ -618,7 +621,7 @@ class BuilderTests(unittest.TestCase):
             self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Review'})
         task=self.detail()['tasks'][0];self.assertEqual(task['status'],'failed');self.assertNotIn('report_id',task['result'])
 
-    def test_initial_file_analysis_also_gets_sequential_tldr(self):
+    def test_initial_file_analysis_also_gets_conversational_guidance(self):
         self.ready();normal=self.responder();stages=[]
         async def respond(prompt,**kwargs):
             req=json.loads(prompt);stages.append(req['stage'])
@@ -633,4 +636,74 @@ class BuilderTests(unittest.TestCase):
         self.assertEqual(stages,['plan','guidance'])
         task=self.detail()['tasks'][0];self.assertEqual(task['status'],'completed')
         self.assertNotIn('report_id',task['result'])
-        self.assertTrue(self.detail()['entries'][-1]['text'].startswith('## TLDR'))
+        self.assertTrue(self.detail()['entries'][-1]['text'].startswith('Planning practice'))
+
+
+    def test_creation_intake_rewrites_long_chat_once(self):
+        self.ready()
+        self.wid=self.client.post('/api/builder/workspaces',json={'title':'Synthetic creation','mode':'creation'}).json()['id']
+        long_reply='## TLDR\n\n' + ('More explanation. ' * 40) + 'Who are the learners? What is the goal?'
+        responses=[{'text':json.dumps({'reply':long_reply}), 'model':'mock'},
+            {'text':json.dumps({'observation':'Let’s start with your course idea.', 'next_step':'Who is it for?'}), 'model':'mock'}]
+        with patch.object(builder,'request_completion',AsyncMock(side_effect=responses)) as call:
+            self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Help me build a course.'})
+            self.assertEqual(call.await_count,2)
+            request=json.loads(call.call_args.args[0])
+            self.assertEqual(request['stage'],'chat_rewrite')
+            self.assertEqual(request['draft_reply'],long_reply)
+        task=self.detail()['tasks'][0]
+        self.assertEqual(task['status'],'completed',task['error'])
+        self.assertEqual(task['result']['plan']['reply'],long_reply)
+        self.assertEqual(self.detail()['entries'][-1]['text'],'Let’s start with your course idea.\n\nWho is it for?')
+        self.assertEqual(self.detail()['state'],{})
+
+    def test_chat_rewrite_failure_does_not_publish_or_loop(self):
+        self.ready()
+        responses=[{'text':json.dumps({'reply':'## TLDR\n\nToo much structure.'}), 'model':'mock'},
+            {'text':json.dumps({'observation':'## Still a heading', 'next_step':'First question? Second question?'}), 'model':'mock'}]
+        with patch.object(builder,'request_completion',AsyncMock(side_effect=responses)) as call:
+            self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'What next?'})
+            self.assertEqual(call.await_count,2)
+        self.assertEqual(self.detail()['tasks'][0]['status'],'failed')
+        self.assertFalse(any('Still a heading' in e['text'] for e in self.detail()['entries']))
+
+    def test_chat_checks_allow_justified_detail_but_keep_one_question(self):
+        from app.orchestration import chat_issues
+        text='I checked only the supplied excerpts. ' * 10 + '\n\nPlease review the proposed change before approving it.'
+        self.assertTrue(chat_issues(text))
+        self.assertEqual(chat_issues(text,'consequential_decision'),[])
+        self.assertTrue(chat_issues(text+' Who agrees? Why?', 'requested_detail'))
+
+
+    def test_review_rewrite_preserves_scope_and_keeps_detailed_report(self):
+        self.ready();normal=self.responder();stages=[]
+        async def respond(prompt, **kwargs):
+            req=json.loads(prompt);stages.append(req['stage'])
+            if req['stage']=='chat_rewrite':
+                self.assertIn('only excerpts',req['draft_reply'])
+                return {'text':json.dumps({'observation':'I checked only excerpts, so this is preliminary. The grading needs a closer look.',
+                    'next_step':'What should learners be able to do?'}),'model':'mock'}
+            result=await normal(prompt,**kwargs)
+            if req['stage']=='guidance':
+                body=json.loads(result['text'])
+                body['tldr']='I checked only excerpts. ' + 'More supporting explanation. ' * 20
+                result['text']=json.dumps(body)
+            return result
+        with patch.object(builder,'request_completion',side_effect=respond):
+            self.client.post(f'/api/builder/workspaces/{self.wid}/chat',json={'text':'Review'})
+        task=self.detail()['tasks'][0]
+        self.assertEqual(task['status'],'completed',task['error'])
+        self.assertEqual(stages[-2:],['guidance','chat_rewrite'])
+        self.assertIn('only excerpts',self.detail()['entries'][-1]['text'])
+        self.assertIn('More supporting explanation.',task['result']['guidance']['tldr'])
+        self.assertIn('# Review',task['result']['coordinator']['report_markdown'])
+
+    def test_guidance_without_question_recommends_next_step(self):
+        from app.orchestration import ReviewGuidance, guidance_message, chat_issues
+        guidance=ReviewGuidance(tldr='I checked the supplied excerpts. The passing rules are clear.',
+            model_lens='Detailed framework explanation.', questions=[], next_step='I’ll check the quizzes next.',
+            framework_citations=['synthetic'])
+        reply=guidance_message(guidance)
+        self.assertEqual(chat_issues(reply),[])
+        self.assertNotIn('?',reply)
+        self.assertNotIn('framework explanation',reply)

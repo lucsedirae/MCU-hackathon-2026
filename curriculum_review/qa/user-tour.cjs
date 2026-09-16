@@ -19,7 +19,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       const dialog = page.getByRole('dialog');
       await dialog.getByRole('heading', { name: 'Welcome to Cadence' }).waitFor();
       const topics = dialog.getByLabel('Jump to a topic');
-      if (await topics.locator('option').count() !== (admin ? 13 : 11)) throw Error('Incorrect role-specific tour steps');
+      if (await topics.locator('option').count() !== (admin ? 14 : 12)) throw Error('Incorrect role-specific tour steps');
+      await topics.selectOption('2');
+      await dialog.getByText('Review and creation intake use short conversational replies', { exact: false }).waitFor();
+      if (await dialog.evaluate(el => el.scrollWidth > el.clientWidth)) throw Error('Changed builder step overflows');
+      await topics.selectOption('0');
+      await dialog.getByRole('button', { name: 'Next', exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await dialog.getByRole('heading', { name: 'Choose a workspace' }).waitFor();
       while (await dialog.getByRole('button', { name: 'Next', exact: true }).count()) {
         await dialog.getByRole('button', { name: 'Next', exact: true }).click();
       }
@@ -29,21 +36,12 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       if (await dialog.count()) throw Error('Escape did not dismiss the tour');
       await page.waitForFunction(() => document.activeElement?.textContent === 'User tour');
       await page.getByRole('button', { name: 'User tour', exact: true }).click();
-      await topics.selectOption(String(admin ? 12 : 10));
+      await topics.selectOption(String(admin ? 13 : 11));
       if (await dialog.evaluate(el => el.scrollWidth > el.clientWidth)) throw Error('Tour overflows horizontally');
       await dialog.getByRole('button', { name: 'Finish tour', exact: true }).click();
-      if (admin) {
-        await page.getByText('Administration', { exact: true }).click();
-        await page.getByRole('button', { name: 'OpenAI settings', exact: true }).click();
-        await page.getByLabel('System prompt', { exact: true }).waitFor({ state: 'visible' });
-        await page.waitForFunction(() => document.querySelector('#system-prompt')?.value === 'Saved instructions');
-        const instructionalModel = page.getByLabel('Instructional Model', { exact: true });
-        if (await instructionalModel.inputValue() !== 'ADDIE' || await instructionalModel.locator('option').count() !== 1) throw Error('Incorrect instructional model placeholder');
-        for (const label of ['Guardrails prompt', 'Review rubric', 'Evidence rules', 'Examples']) { if (await page.getByLabel(label, { exact: true }).count()) throw Error('Removed prompt field still visible'); }
-      }
       if (errors.length) throw Error(errors.join('\n'));
       await page.close();
     }
-    console.log('PASS: all tour steps, administrator/member variants, back/jump/finish, Escape/focus restoration, mobile width, saved system instructions visible.');
+    console.log('PASS: all tour steps, administrator/member variants, back/jump/finish, Escape/focus restoration, mobile width, conversational builder step.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });

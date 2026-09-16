@@ -32,7 +32,10 @@ INSTRUCTIONS = Path(__file__).parent / "instructions"
 
 
 def instructions(role):
-    return (INSTRUCTIONS / "shared.md").read_text() + "\n\n" + (INSTRUCTIONS / f"{role}.md").read_text()
+    policy = (INSTRUCTIONS / "shared.md").read_text() + "\n\n" + (INSTRUCTIONS / f"{role}.md").read_text()
+    if role in {"planner", "guidance"}:
+        policy += "\n\n" + (INSTRUCTIONS / "conversation.md").read_text()
+    return policy
 
 
 def framework_data(f):
