@@ -12,7 +12,8 @@ from uuid import uuid4
 
 from lxml import etree, html
 
-MAX_EXPANDED = 100 * 1024 * 1024
+MAX_EXPANDED = 4 * 1024 * 1024 * 1024
+MAX_SELECTED_XML = 64 * 1024 * 1024
 MAX_XML = 16 * 1024 * 1024
 MAX_MEMBERS = 10000
 SELECTED_XML = re.compile(
@@ -29,15 +30,17 @@ def _name(raw):
 
 
 def _read_archive(data):
-    selected, seen, total, count = {}, set(), 0, 0
+    selected, seen, total, count, selected_size = {}, set(), 0, 0, 0
+    source_file = io.BytesIO(data) if isinstance(data, bytes) else data
+    source_file.seek(0)
 
     def check(raw, size):
-        nonlocal total, count
+        nonlocal total, count, selected_size
         name = _name(raw)
         count += 1
         total += size
         if count > MAX_MEMBERS or total > MAX_EXPANDED:
-            raise ValueError('The Moodle backup exceeds the 100 MB expanded-size or 10,000-entry limit.')
+            raise ValueError('The Moodle backup exceeds the 4 GB expanded-size or 10,000-entry limit.')
         if name in seen:
             raise ValueError('The Moodle backup contains duplicate archive paths.')
         seen.add(name)
@@ -49,11 +52,15 @@ def _read_archive(data):
         )
         if keep and size > MAX_XML:
             raise ValueError('An XML file in the Moodle backup exceeds the 16 MB limit.')
+        if keep:
+            selected_size += size
+            if selected_size > MAX_SELECTED_XML:
+                raise ValueError("The Moodle backup exceeds the 64 MB total imported XML limit.")
         return name, keep
 
     try:
-        if zipfile.is_zipfile(io.BytesIO(data)):
-            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        if zipfile.is_zipfile(source_file):
+            with zipfile.ZipFile(source_file) as archive:
                 for entry in archive.infolist():
                     name, keep = check(entry.filename, entry.file_size)
                     if (entry.external_attr >> 16) & 0o170000 == 0o120000:
@@ -64,7 +71,8 @@ def _read_archive(data):
                         with archive.open(entry) as source:
                             selected[name] = source.read(MAX_XML + 1)
         else:
-            with tarfile.open(fileobj=io.BytesIO(data), mode='r|*') as archive:
+            source_file.seek(0)
+            with tarfile.open(fileobj=source_file, mode='r|*') as archive:
                 for entry in archive:
                     name, keep = check(entry.name, entry.size)
                     if not entry.isfile() and not entry.isdir():

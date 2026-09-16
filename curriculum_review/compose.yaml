@@ -28,6 +28,7 @@ services:
     volumes:
       - ./backend:/app
       - llm_settings:/data/llm
+      - original_uploads:/data/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -59,3 +60,4 @@ services:
 volumes:
   postgres_data:
   llm_settings:
+  original_uploads:

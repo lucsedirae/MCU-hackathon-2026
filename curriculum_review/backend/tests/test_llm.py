@@ -198,6 +198,15 @@ class LLMTests(unittest.TestCase):
                     self.assertEqual(response.status_code, 502)
                     self.assertNotIn("test-secret-only", response.text)
 
+    def test_instructional_model_is_saved_without_changing_other_settings(self):
+        self.save()
+        response = self.client.put('/api/settings/llm', json={'instructional_model':'ADDIE'})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.json()['instructional_model'],'ADDIE')
+        self.assertEqual(response.json()['model'],self.payload['model'])
+        self.assertTrue(response.json()['has_api_key'])
+        self.assertEqual(self.client.put('/api/settings/llm',json={'instructional_model':'unknown'}).status_code,422)
+
 
 if __name__ == "__main__":
     unittest.main()

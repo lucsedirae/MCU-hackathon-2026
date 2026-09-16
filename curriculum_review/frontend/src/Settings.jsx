@@ -15,7 +15,7 @@ export default function Settings() {
   const [modelsError, setModelsError] = useState('');
   const [modelsRefresh, setModelsRefresh] = useState(0);
   const [key, setKey] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
+  const [instructions, setInstructions] = useState([]);
   const [busy, setBusy] = useState('load');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -24,10 +24,10 @@ export default function Settings() {
     setSaved(data);
     setModel(data.model);
     setKey('');
-    setSystemPrompt(data.system_prompt || '');
   }
 
   useEffect(() => {
+    api('/api/builder/instructions').then(setInstructions).catch(()=>setError('Could not load active instructions. Refresh to try again.'));
     api('/api/settings/llm').then(apply).catch(() => setError('Could not load settings. Refresh the page to try again.')).finally(() => setBusy(''));
   }, []);
 
@@ -47,7 +47,7 @@ export default function Settings() {
     return () => { active = false; };
   }, [saved, modelsRefresh]);
 
-  const dirty = saved && (model !== saved.model || key !== '' || systemPrompt !== (saved.system_prompt || ''));
+  const dirty = saved && (model !== saved.model || key !== '');
 
   async function act(action) {
     setBusy(action);
@@ -57,7 +57,7 @@ export default function Settings() {
       if (action === 'save' || (action === 'test' && dirty)) {
         const data = await api('/api/settings/llm', {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model, api_key: key || null, system_prompt: systemPrompt }),
+          body: JSON.stringify({ model, api_key: key || null }),
         });
         apply(data);
         setNotice('Settings saved.');
@@ -99,16 +99,11 @@ export default function Settings() {
           <label className="chat-label" htmlFor="llm-key">API key</label>
           <input className="settings-input" id="llm-key" type="password" autoComplete="new-password" spellCheck={false} maxLength={8192} value={key} onChange={event => setKey(event.target.value)} placeholder={saved?.has_api_key ? 'Leave blank to keep your saved key' : 'Enter API key'} aria-describedby="key-help" />
           <p id="key-help" className="chat-hint">Encrypted on the server and used only with OpenAI. Enter a new key to replace it.</p>
-          <details className="prompt-settings" open><summary>System prompt &amp; instructional model</summary>
+          <details className="prompt-settings" open><summary>ISD instructions</summary>
             <h2 id="prompt-settings-title">System instructions</h2>
-            <label className="chat-label" htmlFor="instructional-model">Instructional Model</label>
-            <select className="settings-input" id="instructional-model" defaultValue="ADDIE" aria-describedby="instructional-model-help">
-              <option value="ADDIE">ADDIE</option>
-            </select>
-            <p id="instructional-model-help" className="chat-hint">Placeholder only. This selection does not affect reviews or generated curricula yet.</p>
-            <label className="chat-label" htmlFor="system-prompt">System prompt</label>
-            <textarea id="system-prompt" className="chat-input" rows={6} maxLength={32000} value={systemPrompt} onChange={event => setSystemPrompt(event.target.value)} placeholder="Describe the agent’s role, goals, and response style…" />
-            <p className="chat-hint">The system prompt is optional and applies to subsequent AI requests after saving.</p>
+            <h3>Active agent instructions</h3>
+            <p className="chat-hint">These versioned instructions control the ISD and specialists. They are maintained with the application; the obsolete shared prompt field is no longer used by the builder.</p>
+            {instructions.map(item=><details key={item.role}><summary>{item.role} · {item.version.slice(0,12)}</summary><pre className="instruction-preview">{item.text}</pre></details>)}
           </details>
           <div className="settings-actions">
             <button type="submit">{busy === 'save' ? 'Saving…' : 'Save settings'}</button>

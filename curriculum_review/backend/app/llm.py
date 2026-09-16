@@ -8,6 +8,7 @@ import httpx
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field, SecretStr, field_validator
+from typing import Literal
 
 router = APIRouter(prefix="/api", tags=["LLM"])
 settings_dir = Path(os.getenv("LLM_SETTINGS_DIR", "/data/llm"))
@@ -20,6 +21,7 @@ class ConnectionSettings(BaseModel):
     model: str = Field(default="", max_length=200)
     api_key: SecretStr | None = None
     system_prompt: str = Field(default="", max_length=32000)
+    instructional_model: Literal["ADDIE"] = "ADDIE"
 
     @field_validator("base_url")
     @classmethod
@@ -64,6 +66,7 @@ def public_settings(settings):
         "model": settings.get("model", ""),
         "has_api_key": bool(settings.get("encrypted_key")),
         "system_prompt": settings.get("system_prompt", ""),
+        "instructional_model": settings.get("instructional_model", "ADDIE"),
     }
 
 
@@ -121,8 +124,8 @@ def save_settings(payload: ConnectionSettings):
         )
         settings = {"base_url": base_url, "model": model, "encrypted_key": encrypted}
         settings_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        for field in ("system_prompt",):
-            settings[field] = getattr(payload, field) if field in payload.model_fields_set else previous.get(field, "")
+        for field in ("system_prompt", "instructional_model"):
+            settings[field] = getattr(payload, field) if field in payload.model_fields_set else previous.get(field, "ADDIE" if field == "instructional_model" else "")
         temporary = settings_dir / "connection.tmp"
         with temporary.open("w") as handle:
             os.chmod(temporary, 0o600)
@@ -138,14 +141,15 @@ def disconnect():
     return {"message": "Connection removed."}
 
 
-async def request_completion(prompt):
+async def request_completion(prompt, *, system_prompt=None):
     settings = read_settings()
     if not all(settings.get(field) for field in ("base_url", "model", "encrypted_key")):
         raise HTTPException(409, "Add an OpenAI model and API key in Settings before sending a request.")
     key = cipher().decrypt(settings["encrypted_key"].encode()).decode()
     instructions = []
-    if settings.get("system_prompt", "").strip():
-        instructions.append(settings["system_prompt"])
+    effective_prompt = settings.get("system_prompt", "") if system_prompt is None else system_prompt
+    if effective_prompt.strip():
+        instructions.append(effective_prompt)
     messages = [{"role": "system", "content": "\n\n".join(instructions)}] if instructions else []
     messages.append({"role": "user", "content": prompt})
     try:

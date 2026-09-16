@@ -13,7 +13,7 @@ from fastapi import (
     Form,
     BackgroundTasks,
 )
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
@@ -31,6 +31,7 @@ from app.models import (
     Export,
     Audit,
     now,
+    BuilderWorkspace,
 )
 from app.content import (
     import_file,
@@ -41,7 +42,6 @@ from app.content import (
     compare,
     export_bytes,
     markdown,
-    MAX_UPLOAD,
     text_units,
     MAX_TEXT,
     as_markdown,
@@ -257,6 +257,7 @@ def workspace_detail(
     w = get(session, Workspace, workspace_id)
     return {
         **serialize(w, "id title owner_id created"),
+        "builder_mode": (session.get(BuilderWorkspace, w.id).mode if session.get(BuilderWorkspace, w.id) else None),
         "owner_name": get(session, User, w.owner_id).name,
         "documents": [
             doc_data(d)
@@ -373,8 +374,8 @@ async def upload(
         fail("Run transcripts cannot be edited.", 403)
     if (d.current_id or "") != expected_current:
         fail("The current revision changed. Refresh before uploading.")
-    data = await file.read(MAX_UPLOAD + 1)
-    content, imported = import_file(file.filename or "upload", data)
+    from app.uploads import read_upload
+    content, imported, original_storage = await read_upload(file, session)
     base = base_id or d.current_id
     previous = revision_for(session, d.id, base) if base else None
     # Preserve every original upload, even when its normalized content is unchanged.
@@ -387,7 +388,7 @@ async def upload(
         Original(
             revision_id=r.id,
             name=(file.filename or "upload").split("/")[-1].split("\\")[-1],
-            data=data,
+            **original_storage,
         )
     )
     imported_by_id = {c["source_id"]: c for c in imported}
@@ -453,6 +454,12 @@ def original(
     original_id: str, user: User = Depends(current), session: Session = Depends(db)
 ):
     o = get(session, Original, original_id)
+    if o.storage_key:
+        from app.uploads import stored_path
+        path = stored_path(o.storage_key)
+        if not path.is_file():
+            fail("Original backup file is unavailable. Restore the upload volume from backup.", 404)
+        return FileResponse(path, filename=o.name, media_type="application/octet-stream")
     return download(o.data, o.name, "application/octet-stream")
 
 
@@ -694,6 +701,8 @@ def resolve(
     t = get(session, Thread, thread_id)
     d = get(session, Document, t.document_id)
     w = get(session, Workspace, d.workspace_id)
+    if session.get(BuilderWorkspace, w.id) and user.id != w.owner_id:
+        fail("Only the workspace owner can resolve builder review comments.", 403)
     if user.id not in (t.author_id, w.owner_id):
         fail(
             "Only the thread author or workspace owner can resolve or reopen this discussion.",
@@ -803,6 +812,8 @@ def start_run(
     session: Session = Depends(db),
 ):
     owner(session, workspace_id, user)
+    if session.get(BuilderWorkspace, workspace_id):
+        fail("Use the Builder workflow for this workspace; legacy runs cannot bypass its guidance and review checks.")
     if payload.kind not in ("review", "generate"):
         fail("Invalid run type.", 400)
     curriculum = session.scalar(

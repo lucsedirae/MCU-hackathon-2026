@@ -6,15 +6,18 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import engine
+from app.knowledge import router as knowledge_router
 from app.llm import router as llm_router
 from app.auth import router as auth_router, administrator
 from app.documents import router as documents_router, recover_runs
+from app.builder import router as builder_router, recover_builder_tasks
 from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
 async def lifespan(app):
     recover_runs()
+    recover_builder_tasks()
     yield
 
 
@@ -23,6 +26,8 @@ logger = logging.getLogger(__name__)
 app.include_router(llm_router, dependencies=[Depends(administrator)])
 app.include_router(auth_router)
 app.include_router(documents_router)
+app.include_router(builder_router)
+app.include_router(knowledge_router)
 
 
 @app.middleware("http")

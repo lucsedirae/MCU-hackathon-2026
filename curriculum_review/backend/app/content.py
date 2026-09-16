@@ -24,6 +24,7 @@ from pypdf import PdfReader
 
 MAX_UPLOAD = 20 * 1024 * 1024
 MAX_TEXT = 200000
+MAX_MBZ_UPLOAD = 1024 * 1024 * 1024
 
 
 def block(kind, text="", **extra):
@@ -117,9 +118,20 @@ def markdown(text):
     }
 
 
+def validate_text(content, name):
+    text = text_of(content)
+    if not text.strip():
+        raise ValueError("No usable document text was found.")
+    # Moodle extraction is already bounded by archive and selected-XML limits.
+    # Corpus size must not be constrained by a single model request's context.
+    if Path(name).suffix.lower() != '.mbz' and len(text) > MAX_TEXT:
+        raise ValueError(f"Extracted document text must be {MAX_TEXT:,} characters or fewer.")
+
+
 def import_file(name, data):
-    if len(data) > MAX_UPLOAD:
-        raise HTTPException(413, "Files must be 20 MB or smaller.")
+    mbz = Path(name).suffix.lower() == ".mbz"
+    if len(data) > (MAX_MBZ_UPLOAD if mbz else MAX_UPLOAD):
+        raise HTTPException(413, "Moodle backups must be 1 GB or smaller." if mbz else "Files must be 20 MB or smaller.")
     suffix = Path(name).suffix.lower()
     comments = []
     try:
@@ -280,10 +292,7 @@ def import_file(name, data):
             content = {"blocks": blocks, "warnings": warnings}
         else:
             raise ValueError("Upload a .docx, .pdf, .md, .txt, Moodle .mbz, or SCORM/xAPI .zip file.")
-        if not text_of(content).strip():
-            raise ValueError("No usable document text was found.")
-        if len(text_of(content)) > MAX_TEXT:
-            raise ValueError("Document text must be under 200,000 characters.")
+        validate_text(content, name)
         return content, comments
     except HTTPException:
         raise

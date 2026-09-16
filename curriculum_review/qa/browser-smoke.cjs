@@ -11,7 +11,7 @@ const fs=require('fs');
   await page.getByLabel('Email',{exact:true}).fill('qa@example.test');
   await page.getByLabel('Password',{exact:true}).fill('QA-only-password-2026');
   await page.getByRole('button',{name:'Create account and sign in'}).click();
-  await page.getByText('Create a workspace',{exact:true}).click();
+  await page.getByText('Create a legacy workspace',{exact:true}).click();
   await page.getByLabel('Curriculum title').fill('Clinical Skills Curriculum');
   await page.getByRole('button',{name:'Create workspace',exact:true}).click();
   await page.getByLabel('Word, PDF, Markdown, text, Moodle backup, or SCORM/xAPI ZIP (maximum 20 MB)').setInputFiles({name:'curriculum.md',mimeType:'text/markdown',buffer:Buffer.from('# Clinical Skills\n\nParticipants practice safe patient assessment.\n\n## Learning objectives\n\n- Identify key observations\n- Explain the assessment sequence\n\n| Skill | Evidence |\n| --- | --- |\n| Assessment | Observed practice |')});

@@ -2,6 +2,9 @@ import UserTour from "./UserTour";
 import { useEffect, useState, useRef } from "react";
 import { api } from "./api";
 import Settings from "./Settings";
+import ReferenceLibrary from "./ReferenceLibrary";
+import WorkspaceProgress from "./WorkspaceProgress";
+import Builder, { NewBuilder, FrameworkLibrary } from "./Builder";
 
 function Fields({ children }) {
   return <div className="form-grid">{children}</div>;
@@ -336,6 +339,7 @@ export default function ReviewApp() {
     [selectedThreads, setSelectedThreads] = useState([]),
     [resolveThreads, setResolveThreads] = useState([]),
     [includeComments, setIncludeComments] = useState(false);
+  const [sidebarTarget, setSidebarTarget] = useState(null);
   const [tourOpen, setTourOpen] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState("curriculum");
   const [tool, setTool] = useState("");
@@ -404,6 +408,7 @@ export default function ReviewApp() {
     setWorkspaceTab("curriculum");
     const curriculum = w.documents.find(d => d.kind === "curriculum");
     if (curriculum) await loadDocument(curriculum.id);
+    if (w.builder_mode) setWorkspaceTab("builder");
 
   }
   useEffect(() => {
@@ -493,28 +498,10 @@ export default function ReviewApp() {
   return (
     <main className="review-app">
       {tourOpen && <UserTour admin={user.admin} onClose={() => { setTourOpen(false); requestAnimationFrame(() => tourButtonRef.current?.focus()); }} />}
-      <header>
-        <span className="mark" aria-hidden="true">C</span>
-        <strong>Cadence</strong>
-        <button ref={tourButtonRef} className="secondary-button" onClick={() => setTourOpen(true)}>User tour</button>
-        <details className="user-menu"><summary>{user.name}</summary>
-          <button className="secondary-button" onClick={() => setPage("account")}>My account</button>
-        <button
-          className="secondary-button"
-          onClick={() =>
-            run(async () => {
-              await api("/auth/logout", { method: "POST" });
-              setUser(null);
-              setWorkspace(null);
-              setDocument(null);
-              setRevision(null);
-            })
-          }
-        >
-          Sign out
-        </button>
-        </details>
-      </header>
+      <aside className="app-sidebar" aria-label="Workspace sidebar">
+        <header><span className="mark" aria-hidden="true">C</span><strong>Cadence</strong></header>
+        <WorkspaceProgress key={workspace?.id || 'none'} workspace={workspace} />
+        <details className="sidebar-navigation" open><summary>Navigation and settings</summary>
       <nav className="page-nav" aria-label="Main navigation">
         <button className={page === "workspaces" ? "active-tab" : "secondary-button"} onClick={() => setPage("workspaces")}>Workspaces</button>
         {user.admin && <details><summary>Administration</summary><div className="toolbar">
@@ -522,24 +509,7 @@ export default function ReviewApp() {
           <button onClick={() => setPage("settings")}>OpenAI settings</button>
         </div></details>}
       </nav>
-      {error && (
-        <div className="error-banner" role="alert">
-          {error}
-          <button className="secondary-button" onClick={() => setError("")}>
-            Dismiss
-          </button>
-        </div>
-      )}
-      {busy && <p className="operation-status" role="status">{busy}… You can continue reading.</p>}
-      <fieldset className="app-fieldset" disabled={busy}>
-        {page === "account" && <PasswordForm onDone={() => setUser(null)} />}
-        {page === "settings" && user.admin && <Settings />}
-        {page === "team" && user.admin && (
-          <Team run={run} users={users} reload={reloadUsers} />
-        )}
-        {page === "workspaces" && (
-          <div className="workspace-shell">
-            <section className="panel workspace-sidebar">
+            <section className="sidebar-library">
               <div className="panel-heading">
                 <div>
                   <p className="eyebrow">Team library</p>
@@ -559,18 +529,19 @@ export default function ReviewApp() {
                   <button
                     key={w.id}
                     className={workspace?.id === w.id ? "" : "secondary-button"}
-                    onClick={() => run(() => openWorkspace(w.id))}
+                    onClick={() => run(() => openWorkspace(w.id).then(() => setPage("workspaces")))}
                   >
                     {w.title}
                   </button>
                 ))}
               </div>
               {!workspaces.length && (
-                <p>No workspaces yet. An administrator can create one below.</p>
+                <p>No workspaces yet. Start a course builder workspace below.</p>
               )}
+              <NewBuilder onCreated={async id => { setWorkspaces(await api("/workspaces")); await openWorkspace(id); setPage("workspaces"); }} />
               {user.admin && (
                 <details>
-                  <summary>Create a workspace</summary>
+                  <summary>Create a legacy workspace</summary>
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -582,7 +553,7 @@ export default function ReviewApp() {
                         });
                         form.reset();
                         setWorkspaces(await api("/workspaces"));
-                        await openWorkspace(w.id);
+                        await openWorkspace(w.id); setPage("workspaces");
                       });
                     }}
                   >
@@ -609,23 +580,7 @@ export default function ReviewApp() {
                 </details>
               )}
             </section>
-            <div className="workspace-main">
-            {!workspace && <section className="panel"><h1>Your team library</h1><p>Choose a workspace to read, review, or revise its curriculum.</p></section>}
-            {workspace && (
-              <section className="panel workspace-heading">
-                <div className="panel-heading">
-                  <div>
-                    <h2>{workspace.title}</h2>
-                    <p>
-                      Owner: {workspace.owner_name} · All team members can view
-                      and comment.
-                    </p>
-                  </div>
-                  {owner && (
-                    <span className="badge">You own this workspace</span>
-                  )}
-                </div>
-                {user.admin && (
+{workspace && <div className="sidebar-workspace-controls">                {user.admin && (
                   <details>
                     <summary>Transfer ownership</summary>
                     <form
@@ -662,14 +617,72 @@ export default function ReviewApp() {
                   </details>
                 )}
                 <nav className="workspace-tabs" aria-label="Workspace sections">
-                  {["curriculum", "proposals", "reports", "activity"].map(tab => <button key={tab} aria-current={workspaceTab === tab ? "page" : undefined} className={workspaceTab === tab ? "active-tab" : "secondary-button"} onClick={() => run(async () => {
+                  {(workspace.builder_mode ? ["builder", ...(document ? [document.kind === "report" ? "reports" : "curriculum"] : [])] : ["curriculum", "proposals", "reports", "activity"]).map(tab => <button key={tab} aria-current={workspaceTab === tab ? "page" : undefined} className={workspaceTab === tab ? "active-tab" : "secondary-button"} onClick={() => run(async () => {
                     if (tab === "curriculum" || tab === "proposals") {
                       const d = workspace.documents.find(d => d.kind === "curriculum");
                       if (d) await loadDocument(d.id);
                     }
-                    setWorkspaceTab(tab); setTool("");
-                  })}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
+                    setWorkspaceTab(tab); setPage("workspaces"); setTool("");
+                  })}>{workspace.builder_mode ? (tab === "builder" ? "Conversation" : "Document") : tab[0].toUpperCase() + tab.slice(1)}</button>)}
                 </nav>
+</div>}
+<div ref={setSidebarTarget} />
+      <div className="sidebar-account">
+        <button ref={tourButtonRef} className="secondary-button" onClick={() => setTourOpen(true)}>User tour</button>
+        <details className="user-menu"><summary>{user.name}</summary>
+          <button className="secondary-button" onClick={() => setPage("account")}>My account</button>
+        <button
+          className="secondary-button"
+          onClick={() =>
+            run(async () => {
+              await api("/auth/logout", { method: "POST" });
+              setUser(null);
+              setWorkspace(null);
+              setDocument(null);
+              setRevision(null);
+            })
+          }
+        >
+          Sign out
+        </button>
+        </details>
+      </div>
+        </details>
+      </aside>
+      <div className="app-content">
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+          <button className="secondary-button" onClick={() => setError("")}>
+            Dismiss
+          </button>
+        </div>
+      )}
+      {busy && <p className="operation-status" role="status">{busy}… You can continue reading.</p>}
+      <fieldset className="app-fieldset" disabled={busy}>
+        {page === "account" && <PasswordForm onDone={() => setUser(null)} />}
+        {page === "settings" && user.admin && <><Settings /><FrameworkLibrary /><ReferenceLibrary /></>}
+        {page === "team" && user.admin && (
+          <Team run={run} users={users} reload={reloadUsers} />
+        )}
+        {page === "workspaces" && (
+          <div className="workspace-shell">
+            <div className="workspace-main">
+            {!workspace && <section className="panel"><h1>Your team library</h1><p>Choose a workspace to read, review, or revise its curriculum.</p></section>}
+            {workspace && (
+              <section className="panel workspace-heading">
+                <div className="panel-heading">
+                  <div>
+                    <h2>{workspace.title}</h2>
+                    <p>
+                      Owner: {workspace.owner_name} · All team members can view
+                      and comment.
+                    </p>
+                  </div>
+                  {owner && (
+                    <span className="badge">You own this workspace</span>
+                  )}
+                </div>
                 {running && <div className="notice" role="status">Work is in progress. <button className="text-button" onClick={() => setWorkspaceTab("activity")}>View activity and stop controls</button></div>}
                 {workspaceTab === "proposals" && document?.kind === "curriculum" && <div className="proposal-list">
                   <h3>Curriculum proposals</h3>
@@ -798,7 +811,8 @@ export default function ReviewApp() {
                 )}
               </section>
             )}
-            {document && workspace && ((["curriculum", "proposals"].includes(workspaceTab) && document.kind === "curriculum") || (workspaceTab === "reports" && document.kind === "report") || (workspaceTab === "activity" && document.kind === "transcript")) && (
+            {workspace?.builder_mode && workspaceTab === "builder" && <Builder sidebarTarget={sidebarTarget} key={workspace.id} workspace={workspace} owner={owner} onDocument={(id,rid) => run(()=>loadDocument(id,rid))} onRefresh={()=>loadWorkspace(workspace.id)} />}
+            {document && workspace && ((["curriculum", "proposals"].includes(workspaceTab) && ["curriculum", "source"].includes(document.kind)) || (workspaceTab === "reports" && document.kind === "report") || (workspaceTab === "activity" && document.kind === "transcript")) && (
               <section className="panel">
                 <div className="panel-heading">
                   <div>
@@ -898,7 +912,7 @@ export default function ReviewApp() {
                     >
                       <Fields>
                         <Field
-                          label="Word, PDF, Markdown, text, Moodle backup, or SCORM/xAPI ZIP (maximum 20 MB)"
+                          label="Word, PDF, Markdown, text, Moodle backup, or SCORM/xAPI ZIP (Moodle: 1 GB; others: 20 MB)"
                           type="file"
                           name="file"
                           accept=".docx,.pdf,.md,.markdown,.txt,.mbz,.zip"
@@ -1300,7 +1314,7 @@ export default function ReviewApp() {
                                       setTimeout(() => { el.scrollIntoView({behavior:"smooth", block:"center"}); el.tabIndex = -1; el.focus({preventScroll:true}); }, 0);
                                     }
                                   }}
-                                  canResolve={owner || t.author_id === user.id}
+                                  canResolve={owner || (!workspace.builder_mode && t.author_id === user.id)}
                                   run={run}
                                   reload={reloadRevision}
                                   openOriginal={() =>
@@ -1328,6 +1342,7 @@ export default function ReviewApp() {
         <span>Cadence</span>
         <span>Version history · Team review</span>
       </footer>
+      </div>
     </main>
   );
 }

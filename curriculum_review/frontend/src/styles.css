@@ -176,3 +176,83 @@ summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 14px; }
 .user-tour progress { width:100%; height:6px; accent-color:#2f8061; }
 .user-tour h2 { margin-top:22px; }
 .user-tour h2:focus { outline:none; }
+
+/* Course-builder review milestone: distinct working material and verified state. */
+.builder .field, .builder fieldset { min-width: 0; }
+.builder-conversation, .builder-preview { max-height: 420px; overflow: auto; overflow-wrap: anywhere; }
+.builder-conversation article { padding: 12px 0; border-bottom: 1px solid #d9e1e8; }
+.preserve-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.builder textarea { width: 100%; box-sizing: border-box; }
+.builder .tool-panel { overflow-wrap: anywhere; }
+@media (max-width: 700px) { .builder .tool-panel button { max-width: 100%; white-space: normal; } }
+.builder h3 { margin: 24px 0 10px; }
+.builder-conversation article { padding: 16px; }
+
+.builder-chat .panel-heading { align-items: flex-start; gap: 20px; }
+.builder-details { max-width: 360px; min-width: 150px; }
+.builder-details[open] { padding: 12px; background: #f5f7f5; border-radius: 12px; }
+.builder-chat .builder-conversation { max-height: 58vh; min-height: 220px; padding: 8px 2px; }
+.builder-chat .chat-message { margin: 12px 0; border: 0; border-radius: 14px; background: #f4f6f3; }
+.builder-chat .chat-message.user { background: #e3eee7; margin-left: 10%; }
+.builder-chat .chat-message.system { background: transparent; color: #50636d; font-size: .9rem; }
+.builder-chat .chat-message.confirmation { border: 1px solid #c6d7c9; }
+.chat-composer { margin-top: 20px; border-top: 1px solid #d9e1e8; padding-top: 16px; }
+.chat-composer.dragging { outline: 2px dashed #40836a; outline-offset: 5px; background: #edf6ef; }
+.chat-composer textarea { border-radius: 12px; }
+.chat-attachments { padding-left: 20px; overflow-wrap: anywhere; }
+.chat-attachments button { margin-left: 12px; }
+@media (max-width: 700px) {
+  .builder-chat .panel-heading { flex-direction: column; }
+  .builder-details { max-width: 100%; width: 100%; box-sizing: border-box; }
+  .builder-chat .builder-conversation { max-height: 55vh; }
+}
+.builder-chat .chat-message p { margin: 8px 0; font-size: 14px; line-height: 1.6; color: #334b56; }
+.instruction-preview { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; font: inherit; font-size: .9rem; }
+.specialist-findings { overflow-wrap: anywhere; }
+.specialist-findings blockquote { margin: .5rem 0; padding: .5rem; border-left: 3px solid #d5dcd7; }
+.agent-markdown { min-width: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.agent-markdown > :first-child { margin-top: .65rem; }
+.agent-markdown > :last-child { margin-bottom: 0; }
+.builder-chat .agent-markdown h1, .builder-chat .agent-markdown h2 { font-size: 1.15rem; line-height: 1.4; margin: 1.1rem 0 .5rem; }
+.builder-chat .agent-markdown h3, .builder-chat .agent-markdown h4, .builder-chat .agent-markdown h5, .builder-chat .agent-markdown h6 { font-size: 1rem; margin: 1rem 0 .4rem; }
+.agent-markdown ul, .agent-markdown ol { padding-left: 1.5rem; margin: .6rem 0; }
+.agent-markdown li { margin: .3rem 0; }
+.agent-markdown blockquote { padding: .4rem .8rem; margin: .8rem 0; border-left: 3px solid #8eb6a2; white-space: normal; }
+.agent-markdown code { font-family: ui-monospace, monospace; font-size: .9em; background: #eaf0ec; padding: .1rem .25rem; border-radius: 3px; }
+.agent-markdown pre { max-width: 100%; overflow-x: auto; white-space: pre; padding: .8rem; background: #eaf0ec; border-radius: 6px; }
+.agent-markdown pre code { padding: 0; white-space: pre; overflow-wrap: normal; }
+.agent-table { max-width: 100%; overflow-x: auto; margin: .8rem 0; }
+.agent-table table { border-collapse: collapse; width: 100%; }
+.agent-table th, .agent-table td { padding: .5rem .7rem; border: 1px solid #d5dcd7; text-align: left; vertical-align: top; }
+.agent-table th { background: #eaf0ec; }
+.agent-table:focus-visible { outline: 2px solid #2f8061; outline-offset: 2px; }
+.agent-markdown .task-list-item { list-style: none; }
+.agent-markdown input[type="checkbox"] { width: auto; margin-right: .5rem; }
+
+/* One persistent rail: observed progress, then navigation and settings. */
+.review-app { display: grid; grid-template-columns: 290px minmax(0,1fr); gap: 28px; max-width: 1600px; padding: 20px; align-items: start; }
+.app-sidebar { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; padding: 20px; background: #fff; border: 1px solid #e0e5df; border-radius: 18px; overflow-wrap: anywhere; }
+.app-content { min-width: 0; }
+.review-app .workspace-shell { display: block; }
+.workspace-progress { margin: 26px 0; font-size: 13px; }
+.workspace-progress h2 { font-size: 19px; }
+.progress-timeline { padding-left: 18px; max-height: 280px; overflow-y: auto; }
+.progress-timeline li { border-left: 2px solid #b4cbbd; padding: 0 0 12px 12px; margin-left: 2px; }
+.progress-timeline p { margin: 5px 0; white-space: pre-wrap; }
+.progress-timeline time { color: #5b6d74; font-size: 11px; }
+.sidebar-navigation { border-top: 1px solid #e0e5df; padding-top: 16px; }
+.app-sidebar .page-nav, .app-sidebar .workspace-list, .sidebar-account, .app-sidebar .workspace-tabs { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.app-sidebar .page-nav { margin-top: 16px; }
+.app-sidebar .user-menu { margin: 0; }
+.app-sidebar .form-grid { grid-template-columns: minmax(0,1fr); }
+.app-sidebar .panel-heading { flex-wrap: wrap; }
+.app-sidebar h1 { font-size: 21px; }
+.sidebar-account, .sidebar-workspace-controls, .builder-details { margin-top: 20px; }
+.app-sidebar button { white-space: normal; overflow-wrap: anywhere; }
+.app-sidebar .builder-details { max-width: none; }
+@media (max-width: 760px) {
+ .review-app { grid-template-columns: minmax(0,1fr); padding: 12px; gap: 12px; }
+ .app-sidebar { position: static; max-height: none; padding: 16px; }
+ .workspace-progress { margin: 18px 0; }
+ .progress-timeline { max-height: 160px; }
+}
