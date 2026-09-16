@@ -37,6 +37,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
         await page.getByRole('button', { name: 'OpenAI settings', exact: true }).click();
         await page.getByLabel('System prompt', { exact: true }).waitFor({ state: 'visible' });
         await page.waitForFunction(() => document.querySelector('#system-prompt')?.value === 'Saved instructions');
+        const instructionalModel = page.getByLabel('Instructional Model', { exact: true });
+        if (await instructionalModel.inputValue() !== 'ADDIE' || await instructionalModel.locator('option').count() !== 1) throw Error('Incorrect instructional model placeholder');
         for (const label of ['Guardrails prompt', 'Review rubric', 'Evidence rules', 'Examples']) await page.getByLabel(label, { exact: true }).waitFor({ state: 'visible' });
       }
       if (errors.length) throw Error(errors.join('\n'));

@@ -163,3 +163,9 @@ Before every commit and push to `dev`, update this README and the in-app tour to
 - 2026-09-15: Added the role-aware user tour and made system prompt fields visible by default. Reviewed tour and README against the current workspace workflows.
 
 - 2026-09-16: Renamed the application to Cadence across the interface, browser title, API documentation, and user tour. Existing project paths, Docker volumes, and export identifiers remain compatible.
+
+### Instructional model placeholder
+
+In **Administration → OpenAI settings → System prompt & review instructions**, **Instructional Model** is a dropdown with **ADDIE** as its only option. It is a visual placeholder: it is not saved or included in AI requests and does not change application behavior.
+
+- 2026-09-16: Added the ADDIE instructional model placeholder; updated the user tour and README to explain its inactive status.

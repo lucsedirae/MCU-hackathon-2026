@@ -105,6 +105,11 @@ export default function Settings() {
           <p id="key-help" className="chat-hint">Encrypted on the server and used only with OpenAI. Enter a new key to replace it.</p>
           <details className="prompt-settings" open><summary>System prompt &amp; review instructions</summary>
             <h2 id="prompt-settings-title">System instructions</h2>
+            <label className="chat-label" htmlFor="instructional-model">Instructional Model</label>
+            <select className="settings-input" id="instructional-model" defaultValue="ADDIE" aria-describedby="instructional-model-help">
+              <option value="ADDIE">ADDIE</option>
+            </select>
+            <p id="instructional-model-help" className="chat-hint">Placeholder only. This selection does not affect reviews or generated curricula yet.</p>
             <label className="chat-label" htmlFor="system-prompt">System prompt</label>
             <textarea id="system-prompt" className="chat-input" rows={6} maxLength={32000} value={systemPrompt} onChange={event => setSystemPrompt(event.target.value)} placeholder="Describe the agent’s role, goals, and response style…" />
             <label className="chat-label" htmlFor="guardrails-prompt">Guardrails prompt</label>
