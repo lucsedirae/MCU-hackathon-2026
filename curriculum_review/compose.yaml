@@ -1,0 +1,61 @@
+name: curriculum_review
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-curriculum_review}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-curriculum_review}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-curriculum_review}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-curriculum_review}
+      POSTGRES_HOST: db
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    ports:
+      - '127.0.0.1:${BACKEND_PORT:-8000}:8000'
+    volumes:
+      - ./backend:/app
+      - llm_settings:/data/llm
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c 'alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload'
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - '127.0.0.1:${FRONTEND_PORT:-5173}:5173'
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  llm_settings:
