@@ -10,10 +10,10 @@ docker compose up --build -d --wait
 
 Open http://localhost:5173. On the first visit, create the administrator account. Then:
 
-1. In **Team**, create accounts with temporary passwords of at least 8 characters. Users must change them at first sign-in.
+1. In **Administration → Team accounts**, create accounts with temporary passwords of at least 8 characters. Users must change them at first sign-in.
 2. Create a workspace and assign an owner. Each workspace contains one curriculum.
-3. As its owner, select the curriculum and upload a DOCX, text-based PDF, Markdown, text, or Moodle `.mbz` backup file, or generate an initial curriculum from instructions.
-4. Select **Preview changes**, then **Accept entire proposal**. Uploaded and generated curricula remain proposals until accepted.
+3. As its owner, open the curriculum and upload a DOCX, text-based PDF, Markdown, text, Moodle `.mbz`, or SCORM/xAPI `.zip` file. Use **Revise** to upload a replacement or generate a curriculum from instructions.
+4. Read **1. Preview document**, select **2. Review changes**, then **Accept entire proposal**. Uploaded and generated curricula remain proposals until accepted.
 5. Team members can select a passage or table-cell text and add comments, reply, and review version history.
 6. Owners can run model reviews against accepted content or proposals. Each run gets its own report and permanent transcript.
 7. Download any revision as Word or Markdown, with optional unresolved comments, or retrieve an original upload.
@@ -134,3 +134,30 @@ This is static text extraction, not a course player or LRS connection. JavaScrip
 ## Workspace navigation
 
 Use **Curriculum**, **Proposals**, **Reports**, and **Activity** to move between workspace tasks. Document actions are grouped under **Review**, **Revise**, **Download**, and **History**. Comments can be collapsed or filtered by status. Administration contains team accounts and OpenAI settings; the user menu contains account and sign-out controls. See [UX_PLAN.md](UX_PLAN.md) for the complete feature map.
+
+## User tour
+
+Select **User tour** in the signed-in app header. Use **Next**, **Back**, or **Jump to a topic**. **Close**, **Finish tour**, or Escape returns you to your work. The tour does not modify data or make AI requests, and can be reopened at any time. Administrators see additional configuration and team-management steps.
+
+1. **Choose a workspace:** use the sidebar. Everyone can view/comment; owners control uploads, AI runs, and proposal decisions.
+2. **Navigate:** Curriculum for the current document, Proposals for pending/rejected changes, Reports for findings, Activity for jobs and transcripts.
+3. **Add content:** upload in an empty curriculum or choose Revise. Read import limitations before accepting converted content.
+4. **Discuss:** select paragraph or table-cell text, or add a general comment. Expand replies; filter Open, Resolved, Needs placement, or All. Show passage locates the text; original context opens the source version. On mobile, use Back to document to return to reading.
+5. **Review:** owners choose Review, enter instructions, and start a job. OpenAI must be configured; requests may incur API charges.
+6. **Revise:** upload or generate a proposal. Select open curriculum comments to include their feedback in generation.
+7. **Decide:** preview the document, review changes against the current curriculum, then accept the entire proposal or reject it. Outdated proposals require careful comparison; changed current versions require a fresh preview. Rejected proposals can be reopened.
+8. **Follow results:** Reports support comments and revisions; uploaded report revisions become current immediately. Activity includes source/results, stop controls, and permanent read-only transcripts. Stopping may not cancel provider processing or billing.
+9. **Retrieve history:** History provides versions, comparisons, restoration, and exact saved exports. Curriculum restoration creates a proposal; report restoration creates a new current revision.
+10. **Download:** choose Word, Markdown, or originals, with optional unresolved comments.
+11. **Administration:** configure OpenAI and shared instructions; create/reset team accounts and assign workspace owners. Administrative access alone does not confer owner permissions.
+12. **Account:** use your user menu to change your password or sign out.
+
+### Where are the system prompt fields?
+
+Administrators: **Administration → OpenAI settings → System prompt & review instructions**. This section is expanded by default and contains **System prompt**, **Guardrails prompt**, **Review rubric**, **Evidence rules**, and **Examples**. These fields were not removed. Save settings after editing; they apply to subsequent AI requests. Non-administrators cannot edit shared settings.
+
+### Documentation maintenance
+
+Before every commit and push to `dev`, update this README and the in-app tour to match the change. See the repository-root `AGENTS.md` for the standing workflow. Changes without a user-facing effect still require a documented review of both sources.
+
+- 2026-09-15: Added the role-aware user tour and made system prompt fields visible by default. Reviewed tour and README against the current workspace workflows.

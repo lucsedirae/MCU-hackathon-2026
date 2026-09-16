@@ -103,7 +103,7 @@ export default function Settings() {
           <label className="chat-label" htmlFor="llm-key">API key</label>
           <input className="settings-input" id="llm-key" type="password" autoComplete="new-password" spellCheck={false} maxLength={8192} value={key} onChange={event => setKey(event.target.value)} placeholder={saved?.has_api_key ? 'Leave blank to keep your saved key' : 'Enter API key'} aria-describedby="key-help" />
           <p id="key-help" className="chat-hint">Encrypted on the server and used only with OpenAI. Enter a new key to replace it.</p>
-          <details className="prompt-settings"><summary>Review instructions</summary>
+          <details className="prompt-settings" open><summary>System prompt &amp; review instructions</summary>
             <h2 id="prompt-settings-title">System instructions</h2>
             <label className="chat-label" htmlFor="system-prompt">System prompt</label>
             <textarea id="system-prompt" className="chat-input" rows={6} maxLength={32000} value={systemPrompt} onChange={event => setSystemPrompt(event.target.value)} placeholder="Describe the agent’s role, goals, and response style…" />

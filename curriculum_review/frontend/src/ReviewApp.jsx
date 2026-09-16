@@ -1,3 +1,4 @@
+import UserTour from "./UserTour";
 import { useEffect, useState, useRef } from "react";
 import { api } from "./api";
 import Settings from "./Settings";
@@ -335,12 +336,14 @@ export default function ReviewApp() {
     [selectedThreads, setSelectedThreads] = useState([]),
     [resolveThreads, setResolveThreads] = useState([]),
     [includeComments, setIncludeComments] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState("curriculum");
   const [tool, setTool] = useState("");
   const [proposalView, setProposalView] = useState("document");
   const [commentsOpen, setCommentsOpen] = useState(() => !window.matchMedia("(max-width: 700px)").matches);
   const [commentFilter, setCommentFilter] = useState("open");
   const contentRef = useRef(null);
+  const tourButtonRef = useRef(null);
   const owner = workspace?.owner_id === user?.id;
   useEffect(() => {
     api("/auth/me")
@@ -489,9 +492,11 @@ export default function ReviewApp() {
     );
   return (
     <main className="review-app">
+      {tourOpen && <UserTour admin={user.admin} onClose={() => { setTourOpen(false); requestAnimationFrame(() => tourButtonRef.current?.focus()); }} />}
       <header>
         <span className="mark">CR</span>
         <strong>Curriculum Review</strong>
+        <button ref={tourButtonRef} className="secondary-button" onClick={() => setTourOpen(true)}>User tour</button>
         <details className="user-menu"><summary>{user.name}</summary>
           <button className="secondary-button" onClick={() => setPage("account")}>My account</button>
         <button
