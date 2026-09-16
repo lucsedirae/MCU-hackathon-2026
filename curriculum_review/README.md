@@ -68,7 +68,7 @@ Generated exports are stored as exact bytes in Postgres. The cache includes the 
 
 ## Model connection
 
-An administrator saves an OpenAI API key, then chooses a model from the dropdown in **Settings**. The API address is fixed to OpenAI. Previously saved credentials and model IDs for other providers are ignored; enter the new OpenAI key and model. Existing system instructions, guardrails, rubric, evidence rules, and examples remain supported. **Test connection** and review/generation runs send requests to OpenAI and may incur OpenAI charges.
+An administrator saves an OpenAI API key, then chooses a model from the dropdown in **Settings**. The API address is fixed to OpenAI. Previously saved credentials and model IDs for other providers are ignored; enter the new OpenAI key and model. The shared System prompt remains supported. **Test connection** and review/generation runs send requests to OpenAI and may incur OpenAI charges.
 
 The API key remains encrypted in the persistent `llm_settings` volume. It is not returned to the browser. Back up this volume to retain the connection and encryption key.
 
@@ -154,7 +154,7 @@ Select **User tour** in the signed-in app header. Use **Next**, **Back**, or **J
 
 ### Where are the system prompt fields?
 
-Administrators: **Administration → OpenAI settings → System prompt & review instructions**. This section is expanded by default and contains **System prompt**, **Guardrails prompt**, **Review rubric**, **Evidence rules**, and **Examples**. These fields were not removed. Save settings after editing; they apply to subsequent AI requests. Non-administrators cannot edit shared settings.
+Administrators: **Administration → OpenAI settings → System prompt & instructional model**. This section is expanded by default and contains the single shared **System prompt** field. Save settings after editing; it applies to subsequent AI requests. Non-administrators cannot edit shared settings.
 
 ### Documentation maintenance
 
@@ -166,6 +166,8 @@ Before every commit and push to `dev`, update this README and the in-app tour to
 
 ### Instructional model placeholder
 
-In **Administration → OpenAI settings → System prompt & review instructions**, **Instructional Model** is a dropdown with **ADDIE** as its only option. It is a visual placeholder: it is not saved or included in AI requests and does not change application behavior.
+In **Administration → OpenAI settings → System prompt & instructional model**, **Instructional Model** is a dropdown with **ADDIE** as its only option. It is a visual placeholder: it is not saved or included in AI requests and does not change application behavior.
 
 - 2026-09-16: Added the ADDIE instructional model placeholder; updated the user tour and README to explain its inactive status.
+
+- 2026-09-16: Simplified shared prompts to System prompt only. Removed Guardrails, Review rubric, Evidence rules, and Examples from settings and request assembly, including previously saved values. Per-run instructions and the ADDIE placeholder remain. Tour reviewed and updated.

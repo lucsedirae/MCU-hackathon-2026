@@ -20,10 +20,6 @@ class ConnectionSettings(BaseModel):
     model: str = Field(default="", max_length=200)
     api_key: SecretStr | None = None
     system_prompt: str = Field(default="", max_length=32000)
-    guardrails_prompt: str = Field(default="", max_length=32000)
-    review_rubric: str = Field(default="", max_length=32000)
-    evidence_rules: str = Field(default="", max_length=32000)
-    examples: str = Field(default="", max_length=32000)
 
     @field_validator("base_url")
     @classmethod
@@ -68,10 +64,6 @@ def public_settings(settings):
         "model": settings.get("model", ""),
         "has_api_key": bool(settings.get("encrypted_key")),
         "system_prompt": settings.get("system_prompt", ""),
-        "guardrails_prompt": settings.get("guardrails_prompt", ""),
-        "review_rubric": settings.get("review_rubric", ""),
-        "evidence_rules": settings.get("evidence_rules", ""),
-        "examples": settings.get("examples", ""),
     }
 
 
@@ -129,7 +121,7 @@ def save_settings(payload: ConnectionSettings):
         )
         settings = {"base_url": base_url, "model": model, "encrypted_key": encrypted}
         settings_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-        for field in ("system_prompt", "guardrails_prompt", "review_rubric", "evidence_rules", "examples"):
+        for field in ("system_prompt",):
             settings[field] = getattr(payload, field) if field in payload.model_fields_set else previous.get(field, "")
         temporary = settings_dir / "connection.tmp"
         with temporary.open("w") as handle:
@@ -154,11 +146,6 @@ async def request_completion(prompt):
     instructions = []
     if settings.get("system_prompt", "").strip():
         instructions.append(settings["system_prompt"])
-    if settings.get("guardrails_prompt", "").strip():
-        instructions.append("Guardrails:\n" + settings["guardrails_prompt"])
-    for field, label in (("review_rubric", "Review rubric"), ("evidence_rules", "Evidence rules"), ("examples", "Examples")):
-        if settings.get(field, "").strip():
-            instructions.append(label + ":\n" + settings[field])
     messages = [{"role": "system", "content": "\n\n".join(instructions)}] if instructions else []
     messages.append({"role": "user", "content": prompt})
     try:

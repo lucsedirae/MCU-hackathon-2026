@@ -71,7 +71,7 @@ class LLMTests(unittest.TestCase):
         self.assertEqual(self.client.put("/api/settings/llm", json={}).status_code, 200)
         self.save()
         response = self.client.put(
-            "/api/settings/llm", json={"review_rubric": "Check alignment."}
+            "/api/settings/llm", json={"system_prompt": "Check alignment."}
         )
         self.assertTrue(response.json()["has_api_key"])
         self.assertEqual(response.json()["model"], self.payload["model"])
@@ -137,9 +137,13 @@ class LLMTests(unittest.TestCase):
         self.save()
         saved = self.client.get("/api/settings/llm").json()
         self.assertEqual(saved["system_prompt"], self.payload["system_prompt"])
-        self.assertEqual(saved["guardrails_prompt"], self.payload["guardrails_prompt"])
-        for field in ("review_rubric", "evidence_rules", "examples"):
-            self.assertEqual(saved[field], self.payload[field])
+        for field in ("guardrails_prompt", "review_rubric", "evidence_rules", "examples"):
+            self.assertNotIn(field, saved)
+        # Even settings saved by older versions must not affect new requests.
+        path = llm.settings_dir / "connection.json"
+        legacy = json.loads(path.read_text())
+        legacy.update({field: "LEGACY INSTRUCTIONS" for field in ("guardrails_prompt", "review_rubric", "evidence_rules", "examples")})
+        path.write_text(json.dumps(legacy))
         real_client = httpx.AsyncClient
 
         def provider(request):
@@ -154,7 +158,7 @@ class LLMTests(unittest.TestCase):
                 messages[0],
                 {
                     "role": "system",
-                    "content": "Review the curriculum.\n\nGuardrails:\nAsk when information is missing.\n\nReview rubric:\nCheck alignment.\n\nEvidence rules:\nCite the source.\n\nExamples:\nFinding: objectives align.",
+                    "content": "Review the curriculum.",
                 },
             )
             self.assertEqual(messages[1]["role"], "user")

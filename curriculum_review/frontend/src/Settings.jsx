@@ -16,8 +16,6 @@ export default function Settings() {
   const [modelsRefresh, setModelsRefresh] = useState(0);
   const [key, setKey] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [guardrailsPrompt, setGuardrailsPrompt] = useState('');
-  const [reviewInstructions, setReviewInstructions] = useState({ review_rubric: '', evidence_rules: '', examples: '' });
   const [busy, setBusy] = useState('load');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -27,8 +25,6 @@ export default function Settings() {
     setModel(data.model);
     setKey('');
     setSystemPrompt(data.system_prompt || '');
-    setGuardrailsPrompt(data.guardrails_prompt || '');
-    setReviewInstructions({ review_rubric: data.review_rubric || '', evidence_rules: data.evidence_rules || '', examples: data.examples || '' });
   }
 
   useEffect(() => {
@@ -51,7 +47,7 @@ export default function Settings() {
     return () => { active = false; };
   }, [saved, modelsRefresh]);
 
-  const dirty = saved && (model !== saved.model || key !== '' || systemPrompt !== (saved.system_prompt || '') || guardrailsPrompt !== (saved.guardrails_prompt || '') || Object.entries(reviewInstructions).some(([field, value]) => value !== (saved[field] || '')));
+  const dirty = saved && (model !== saved.model || key !== '' || systemPrompt !== (saved.system_prompt || ''));
 
   async function act(action) {
     setBusy(action);
@@ -61,7 +57,7 @@ export default function Settings() {
       if (action === 'save' || (action === 'test' && dirty)) {
         const data = await api('/api/settings/llm', {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model, api_key: key || null, system_prompt: systemPrompt, guardrails_prompt: guardrailsPrompt, ...reviewInstructions }),
+          body: JSON.stringify({ model, api_key: key || null, system_prompt: systemPrompt }),
         });
         apply(data);
         setNotice('Settings saved.');
@@ -103,7 +99,7 @@ export default function Settings() {
           <label className="chat-label" htmlFor="llm-key">API key</label>
           <input className="settings-input" id="llm-key" type="password" autoComplete="new-password" spellCheck={false} maxLength={8192} value={key} onChange={event => setKey(event.target.value)} placeholder={saved?.has_api_key ? 'Leave blank to keep your saved key' : 'Enter API key'} aria-describedby="key-help" />
           <p id="key-help" className="chat-hint">Encrypted on the server and used only with OpenAI. Enter a new key to replace it.</p>
-          <details className="prompt-settings" open><summary>System prompt &amp; review instructions</summary>
+          <details className="prompt-settings" open><summary>System prompt &amp; instructional model</summary>
             <h2 id="prompt-settings-title">System instructions</h2>
             <label className="chat-label" htmlFor="instructional-model">Instructional Model</label>
             <select className="settings-input" id="instructional-model" defaultValue="ADDIE" aria-describedby="instructional-model-help">
@@ -112,20 +108,7 @@ export default function Settings() {
             <p id="instructional-model-help" className="chat-hint">Placeholder only. This selection does not affect reviews or generated curricula yet.</p>
             <label className="chat-label" htmlFor="system-prompt">System prompt</label>
             <textarea id="system-prompt" className="chat-input" rows={6} maxLength={32000} value={systemPrompt} onChange={event => setSystemPrompt(event.target.value)} placeholder="Describe the agent’s role, goals, and response style…" />
-            <label className="chat-label" htmlFor="guardrails-prompt">Guardrails prompt</label>
-            <textarea id="guardrails-prompt" className="chat-input" rows={5} maxLength={32000} value={guardrailsPrompt} onChange={event => setGuardrailsPrompt(event.target.value)} placeholder="Describe boundaries and rules the agent should follow…" aria-describedby="guardrails-help" />
-            <p id="guardrails-help" className="chat-hint">Guardrails guide the model; they do not guarantee enforcement.</p>
-            {[
-              ['review_rubric', 'Review rubric', 'Define review criteria, scoring levels, and what a successful curriculum should demonstrate…'],
-              ['evidence_rules', 'Evidence rules', 'Describe how to cite source materials, distinguish assumptions, and handle missing evidence…'],
-              ['examples', 'Examples', 'Add sample inputs and ideal reviews to demonstrate the expected approach, tone, and level of detail…'],
-            ].map(([field, label, placeholder]) => (
-              <div key={field}>
-                <label className="chat-label" htmlFor={field}>{label}</label>
-                <textarea id={field} className="chat-input" rows={6} maxLength={32000} value={reviewInstructions[field]} onChange={event => setReviewInstructions(previous => ({ ...previous, [field]: event.target.value }))} placeholder={placeholder} />
-              </div>
-            ))}
-            <p className="chat-hint">All instruction fields are optional and included in model requests after saving.</p>
+            <p className="chat-hint">The system prompt is optional and applies to subsequent AI requests after saving.</p>
           </details>
           <div className="settings-actions">
             <button type="submit">{busy === 'save' ? 'Saving…' : 'Save settings'}</button>
