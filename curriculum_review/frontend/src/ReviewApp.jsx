@@ -98,7 +98,7 @@ function AccountGate({ onUser }) {
   }
   return (
     <section className="panel auth-panel">
-      <p className="eyebrow">Curriculum Review</p>
+      <p className="eyebrow">Cadence</p>
       <h1>{setup ? "Create the first administrator" : "Welcome back"}</h1>
       <p>
         {setup
@@ -494,8 +494,8 @@ export default function ReviewApp() {
     <main className="review-app">
       {tourOpen && <UserTour admin={user.admin} onClose={() => { setTourOpen(false); requestAnimationFrame(() => tourButtonRef.current?.focus()); }} />}
       <header>
-        <span className="mark">CR</span>
-        <strong>Curriculum Review</strong>
+        <span className="mark" aria-hidden="true">C</span>
+        <strong>Cadence</strong>
         <button ref={tourButtonRef} className="secondary-button" onClick={() => setTourOpen(true)}>User tour</button>
         <details className="user-menu"><summary>{user.name}</summary>
           <button className="secondary-button" onClick={() => setPage("account")}>My account</button>
@@ -1325,7 +1325,7 @@ export default function ReviewApp() {
         )}
       </fieldset>
       <footer>
-        <span>Curriculum Review</span>
+        <span>Cadence</span>
         <span>Version history · Team review</span>
       </footer>
     </main>

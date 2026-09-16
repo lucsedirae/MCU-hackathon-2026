@@ -18,7 +18,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Curriculum Review", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="Cadence", version="0.2.0", lifespan=lifespan)
 logger = logging.getLogger(__name__)
 app.include_router(llm_router, dependencies=[Depends(administrator)])
 app.include_router(auth_router)

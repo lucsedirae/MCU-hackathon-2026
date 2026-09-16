@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 // Keep these steps aligned with README.md whenever committing/pushing to dev.
-export const TOUR_REVIEWED = '2026-09-15';
+export const TOUR_REVIEWED = '2026-09-16';
 const steps = [
-  { title: 'Welcome to Curriculum Review', text: 'Use this tool to read a curriculum, discuss improvements, review proposed changes, and keep a complete version history.', tip: 'This tour is a guide only: it does not upload files, change settings, or start paid AI requests.' },
+  { title: 'Welcome to Cadence', text: 'Use this tool to read a curriculum, discuss improvements, review proposed changes, and keep a complete version history.', tip: 'This tour is a guide only: it does not upload files, change settings, or start paid AI requests.' },
   { title: 'Choose a workspace', text: 'Open Workspaces and choose a curriculum from the left sidebar. Each workspace has an owner. Everyone on the team can read and comment; only the owner can upload, run reviews, and accept changes.', tip: 'Administrators create workspaces and assign or transfer ownership. Being an administrator does not automatically make you the owner.' },
   { title: 'Find your way around', text: 'Curriculum shows the current document. Proposals collects pending and rejected changes. Reports contains review findings. Activity shows review and generation jobs, their source versions, results, and transcripts.', tip: 'When no curriculum has been accepted yet, opening the workspace may show its first proposal.' },
   { title: 'Add a curriculum', text: 'If you own the workspace, upload a file in the empty curriculum view, or choose Revise to upload a new proposal or generate one from instructions.', tip: 'Accepted uploads: Word, text-based PDF, Markdown, plain text, Moodle MBZ, and SCORM/Tin Can/cmi5 ZIP packages. The limit is 20 MB. Read import limitations: interactive or script-generated course content may be incomplete.' },

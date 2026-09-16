@@ -1,4 +1,4 @@
-# Curriculum Review
+# Cadence
 
 A self-hosted curriculum review application built with React, FastAPI, and PostgreSQL. It supports team accounts, curriculum proposals, immutable content revisions, review reports, run transcripts, comments, and Word/Markdown exports.
 
@@ -161,3 +161,5 @@ Administrators: **Administration → OpenAI settings → System prompt & review 
 Before every commit and push to `dev`, update this README and the in-app tour to match the change. See the repository-root `AGENTS.md` for the standing workflow. Changes without a user-facing effect still require a documented review of both sources.
 
 - 2026-09-15: Added the role-aware user tour and made system prompt fields visible by default. Reviewed tour and README against the current workspace workflows.
+
+- 2026-09-16: Renamed the application to Cadence across the interface, browser title, API documentation, and user tour. Existing project paths, Docker volumes, and export identifiers remain compatible.

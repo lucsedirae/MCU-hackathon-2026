@@ -17,7 +17,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
       await page.goto(process.env.QA_URL || 'http://localhost:5173');
       await page.getByRole('button', { name: 'User tour', exact: true }).click();
       const dialog = page.getByRole('dialog');
-      await dialog.getByRole('heading', { name: 'Welcome to Curriculum Review' }).waitFor();
+      await dialog.getByRole('heading', { name: 'Welcome to Cadence' }).waitFor();
       const topics = dialog.getByLabel('Jump to a topic');
       if (await topics.locator('option').count() !== (admin ? 13 : 11)) throw Error('Incorrect role-specific tour steps');
       while (await dialog.getByRole('button', { name: 'Next', exact: true }).count()) {
